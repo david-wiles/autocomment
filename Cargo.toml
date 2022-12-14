@@ -14,3 +14,4 @@ reqwest = { version = "0.11.13", features = ["blocking", "native-tls"] }
 serde = { version = "1.0.150", features = ["derive"] }
 serde_json = "1.0.89"
 serde_yaml = "0.9.14"
+thiserror = "1.0.37"

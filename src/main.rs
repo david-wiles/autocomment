@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
-use autocomment_rs::{Credentials, sync_comments};
+
+use autocomment_rs::sync_comments;
+use autocomment_rs::credentials::Credentials;
 
 #[derive(Parser)]
 #[command(name = "AutoComment")]
@@ -94,4 +96,9 @@ fn main() {
             }
         }
     }
+}
+
+#[cfg(test)]
+mod test {
+
 }
