@@ -2,6 +2,8 @@ use clap::{Parser, Subcommand};
 
 use autocomment_rs::sync_comments;
 use autocomment_rs::credentials::Credentials;
+use autocomment_rs::github::DefaultGithubClient;
+use autocomment_rs::jira::DefaultJiraClient;
 
 #[derive(Parser)]
 #[command(name = "AutoComment")]
@@ -20,9 +22,9 @@ enum Commands {
         #[arg(short, long)]
         repo: String,
 
-        /// Only sync open PR's
+        /// Filters to pass to Github when querying repos. Try stat=open for open PR's
         #[arg(short, long)]
-        only_open: bool,
+        filter: Option<String>,
     },
 
     /// Updates Github or Jira credentials
@@ -58,16 +60,19 @@ fn main() {
 
     if let Some(cmd) = &cli.command {
         match cmd {
-            Commands::Sync { repo, only_open } => {
+            Commands::Sync { repo, filter } => {
                 if let Ok(creds) = Credentials::from_env() {
-                    let filters = if *only_open {
-                        "?stat=open"
-                    } else {
-                        ""
-                    };
+                    let mut filters = String::new();
 
-                    match sync_comments(repo.clone(), filters.to_string(), &creds) {
-                        Ok(comments) => comments.iter().for_each(|comment| println!("{}", comment)),
+                    if let Some(querystring) = filter {
+                        filters = "?".to_owned() + querystring;
+                    }
+
+                    let gh_client = DefaultGithubClient::new(&creds);
+                    let jira_client = DefaultJiraClient::new(&creds);
+
+                    match sync_comments(repo.clone(), filters.to_string(), &gh_client, &jira_client) {
+                        Ok(results) => results.iter().for_each(|msg| println!("{}", msg)),
                         Err(err) => println!("{}", err)
                     }
                 }
