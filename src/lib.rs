@@ -17,12 +17,13 @@ fn process_pull_request(jira_client: &dyn jira::JiraClient, pr: &GHPullRequest) 
         .ok_or(Error::AutocommentError(format!("PR {} does not have a description!", pr.html_url.clone())))?;
 
     if let Some(jira_id) = jira::parse_jira_ticket_number(pr_body, jira_client.get_domain()) {
+        let ticket_url = format!("https://{}/browse/{}", jira_client.get_domain(), jira_id);
         let comments = jira_client.get_jira_comments(jira_id.clone())?;
         if !comments.contains_text(pr.html_url.clone()) {
             jira_client.post_jira_comment(jira_id.clone(), pr.build_jira_comment()?)
-                .map(|_| format!("Added Jira Comment on ticket {} from {}.", jira_id, pr.html_url.clone()))
+                .map(|_| format!("Added Jira Comment on ticket {} from {}.", ticket_url, pr.html_url.clone()))
         } else {
-            Ok(format!("Jira ticket {} already has comment for {}.", jira_id, pr.html_url.clone()))
+            Ok(format!("Jira ticket {} already has comment for {}.", ticket_url, pr.html_url.clone()))
         }
     } else {
         Ok(format!("PR {} does not contain a Jira ticket!", pr.html_url.clone()))
@@ -96,7 +97,7 @@ mod test {
 
         let results = sync_comments("org/repo".to_string(), "".to_string(), &gh_client, &jira_client).unwrap();
 
-        assert_eq!(results, vec!["Added Jira Comment on ticket A-1 from https://url/org/repo/1.".to_string(), "PR https://url/org/repo/2 does not contain a Jira ticket!".to_string(), "PR https://url/org/repo/3 does not contain a Jira ticket!".to_string()]);
+        assert_eq!(results, vec!["Added Jira Comment on ticket https://jira.domain/browse/A-1 from https://url/org/repo/1.".to_string(), "PR https://url/org/repo/2 does not contain a Jira ticket!".to_string(), "PR https://url/org/repo/3 does not contain a Jira ticket!".to_string()]);
     }
 
     #[test]
@@ -131,7 +132,7 @@ mod test {
 
         let results = sync_comments("org/repo".to_string(), "".to_string(), &gh_client, &jira_client).unwrap();
 
-        assert_eq!(results, vec!["Jira ticket A-1 already has comment for https://url/org/repo/1.".to_string()]);
+        assert_eq!(results, vec!["Jira ticket https://jira.domain/browse/A-1 already has comment for https://url/org/repo/1.".to_string()]);
     }
 
     #[test]
@@ -185,7 +186,7 @@ mod test {
 
         let results = sync_comments("org/repo".to_string(), "".to_string(), &gh_client, &jira_client).unwrap();
 
-        assert_eq!(results, vec!["Added Jira Comment on ticket A-1 from https://url/org/repo/1.".to_string()]);
+        assert_eq!(results, vec!["Added Jira Comment on ticket https://jira.domain/browse/A-1 from https://url/org/repo/1.".to_string()]);
     }
 
     #[test]
