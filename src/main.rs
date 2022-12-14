@@ -22,7 +22,7 @@ enum Commands {
         #[arg(short, long)]
         repo: String,
 
-        /// Filters to pass to Github when querying repos. Try stat=open for open PR's
+        /// Filters to pass to Github when querying repos. Try state=open for open PR's
         #[arg(short, long)]
         filter: Option<String>,
     },
