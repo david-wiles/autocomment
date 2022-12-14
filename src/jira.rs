@@ -26,6 +26,7 @@ impl JiraCommentResponse {
 }
 
 pub trait JiraClient {
+    fn get_domain(&self) -> String;
     fn post_jira_comment(&self, ticket_id: String, text: String) -> Result<(), Error>;
     fn get_jira_comments(&self, ticket_id: String) -> Result<JiraCommentResponse, Error>;
 }
@@ -43,6 +44,10 @@ impl<'a> DefaultJiraClient<'a> {
 }
 
 impl<'a> JiraClient for DefaultJiraClient<'a> {
+    fn get_domain(&self) -> String {
+        self.creds.jira_domain.clone()
+    }
+
     fn post_jira_comment(&self, ticket_id: String, text: String) -> Result<(), Error> {
         let jira_url = format!("https://{}/rest/api/3/issue/{}/comment?expand=renderedBody", self.creds.jira_domain, ticket_id);
         let resp = self.client.post(jira_url)
@@ -73,8 +78,8 @@ impl<'a> JiraClient for DefaultJiraClient<'a> {
     }
 }
 
-pub fn parse_jira_ticket_number(pr_body: String) -> Option<String> {
-    let re = regex::Regex::new(r"\[(\w+\-\d+)\]\(https://taserintl\.atlassian\.net\S+\)").unwrap();
+pub fn parse_jira_ticket_number(pr_body: String, domain: String) -> Option<String> {
+    let re = regex::Regex::new(format!(r"\[(\w+\-\d+)\]\(https://{}\S+\)", domain.replace(".", r"\.")).as_str()).unwrap();
     for group in re.captures_iter(pr_body.as_str()) {
         // Return the first matching ticket
         return Some(group[1].to_string());
@@ -83,10 +88,15 @@ pub fn parse_jira_ticket_number(pr_body: String) -> Option<String> {
 }
 
 pub struct MockJiraClient {
+    pub domain: String,
     pub data: Box<JiraCommentResponse>
 }
 
 impl JiraClient for MockJiraClient {
+    fn get_domain(&self) -> String {
+        self.domain.clone()
+    }
+
     fn post_jira_comment(&self, ticket_id: String, text: String) -> Result<(), Error> {
         Ok(())
     }
@@ -143,11 +153,11 @@ mod test {
 
     #[test]
     fn parse_jira_ticket_number_with_match() {
-        assert_eq!(parse_jira_ticket_number("dsaaerl; are aerg \nasfwqrwrv\nasdfawfr\t[CEC-123](https://taserintl.atlassian.net/asdf) asdfar w\nasdf".to_string()).unwrap(), "CEC-123".to_string())
+        assert_eq!(parse_jira_ticket_number("dsaaerl; are aerg \nasfwqrwrv\nasdfawfr\t[CEC-123](https://jira.domain/asdf) asdfar w\nasdf".to_string(), "jira.domain".to_string()).unwrap(), "CEC-123".to_string())
     }
 
     #[test]
     fn parse_jira_ticket_number_no_match() {
-        assert!(parse_jira_ticket_number("dsaaerl; are aerg \nasfwqrwrv\nasdfawfr\tasdfar w\nasdf".to_string()).is_none())
+        assert!(parse_jira_ticket_number("dsaaerl; are aerg \nasfwqrwrv\nasdfawfr\tasdfar w\nasdf".to_string(), "jira.domain".to_string()).is_none())
     }
 }

@@ -16,7 +16,7 @@ fn process_pull_request(jira_client: &dyn jira::JiraClient, pr: &GHPullRequest) 
     let pr_body = pr.body.clone()
         .ok_or(Error::AutocommentError(format!("PR {} does not have a description!", pr.html_url.clone())))?;
 
-    if let Some(jira_id) = jira::parse_jira_ticket_number(pr_body) {
+    if let Some(jira_id) = jira::parse_jira_ticket_number(pr_body, jira_client.get_domain()) {
         let comments = jira_client.get_jira_comments(jira_id.clone())?;
         if !comments.contains_text(pr.html_url.clone()) {
             jira_client.post_jira_comment(jira_id.clone(), pr.build_jira_comment()?)
@@ -51,6 +51,7 @@ mod test {
     #[test]
     fn adds_comments_on_prs() {
         let jira_client = MockJiraClient {
+            domain: "jira.domain".to_string(),
             data: Box::new(JiraCommentResponse {
                 total: 2,
                 comments: vec![
@@ -70,7 +71,7 @@ mod test {
                     base: GHPullRequestBase { repo: GHRepo { full_name: "org/repo".to_string() } },
                     html_url: "https://url/org/repo/1".to_string(),
                     title: "test title".to_string(),
-                    body: Some("test body [A-1](https://taserintl.atlassian.net/asdf)".to_string()),
+                    body: Some("test body [A-1](https://jira.domain/asdf)".to_string()),
                     created_at: "datetime".to_string(),
                     user: GHPullRequestOwner { login: "me".to_string() },
                 },
@@ -101,6 +102,7 @@ mod test {
     #[test]
     fn dedups_existing_comments() {
         let jira_client = MockJiraClient {
+            domain: "jira.domain".to_string(),
             data: Box::new(JiraCommentResponse {
                 total: 2,
                 comments: vec![
@@ -120,7 +122,7 @@ mod test {
                     base: GHPullRequestBase { repo: GHRepo { full_name: "org/repo".to_string() } },
                     html_url: "https://url/org/repo/1".to_string(),
                     title: "test title".to_string(),
-                    body: Some("test body [A-1](https://taserintl.atlassian.net/asdf)".to_string()),
+                    body: Some("test body [A-1](https://jira.domain/asdf)".to_string()),
                     created_at: "datetime".to_string(),
                     user: GHPullRequestOwner { login: "me".to_string() },
                 },
@@ -135,6 +137,7 @@ mod test {
     #[test]
     fn test_no_prs() {
         let jira_client = MockJiraClient {
+            domain: "jira.domain".to_string(),
             data: Box::new(JiraCommentResponse {
                 total: 2,
                 comments: vec![
@@ -160,6 +163,7 @@ mod test {
     #[test]
     fn test_no_comments() {
         let jira_client = MockJiraClient {
+            domain: "jira.domain".to_string(),
             data: Box::new(JiraCommentResponse {
                 total: 0,
                 comments: Vec::new(),
@@ -172,7 +176,7 @@ mod test {
                     base: GHPullRequestBase { repo: GHRepo { full_name: "org/repo".to_string() } },
                     html_url: "https://url/org/repo/1".to_string(),
                     title: "test title".to_string(),
-                    body: Some("test body [A-1](https://taserintl.atlassian.net/asdf)".to_string()),
+                    body: Some("test body [A-1](https://jira.domain/asdf)".to_string()),
                     created_at: "datetime".to_string(),
                     user: GHPullRequestOwner { login: "me".to_string() },
                 },
