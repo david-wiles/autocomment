@@ -1,5 +1,5 @@
 [package]
-name = "autocomment-rs"
+name = "autocomment"
 version = "0.1.0"
 edition = "2021"
 authors = ["David Wiles"]

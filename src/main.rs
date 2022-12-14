@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
 
-use autocomment_rs::sync_comments;
-use autocomment_rs::credentials::Credentials;
-use autocomment_rs::github::DefaultGithubClient;
-use autocomment_rs::jira::DefaultJiraClient;
+use autocomment::sync_comments;
+use autocomment::credentials::Credentials;
+use autocomment::github::DefaultGithubClient;
+use autocomment::jira::DefaultJiraClient;
 
 #[derive(Parser)]
 #[command(name = "AutoComment")]
