@@ -1,0 +1,16 @@
+[package]
+name = "autocomment-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["David Wiles"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.0.29", features = ["derive"] }
+home = "0.5.4"
+regex = "1.7.0"
+reqwest = { version = "0.11.13", features = ["blocking", "native-tls"] }
+serde = { version = "1.0.150", features = ["derive"] }
+serde_json = "1.0.89"
+serde_yaml = "0.9.14"
