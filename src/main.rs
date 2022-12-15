@@ -1,9 +1,5 @@
 use clap::{Parser, Subcommand};
-
-use autocomment::sync_comments;
-use autocomment::credentials::Credentials;
-use autocomment::github::DefaultGithubClient;
-use autocomment::jira::DefaultJiraClient;
+use autocomment::{sync_comments, Error, Credentials, DefaultGithubClient, DefaultJiraClient};
 
 #[derive(Parser)]
 #[command(name = "AutoComment")]
@@ -71,9 +67,14 @@ fn main() {
                     let gh_client = DefaultGithubClient::new(&creds);
                     let jira_client = DefaultJiraClient::new(&creds);
 
-                    match sync_comments(repo, &filters, &gh_client, &jira_client) {
-                        Ok(results) => results.iter().for_each(|msg| println!("{}", msg)),
-                        Err(err) => println!("{}", err)
+                    if let Some(err) = sync_comments(repo, &filters, &gh_client, &jira_client).err() {
+                        match err {
+                            Error::AutocommentError(err) => println!("Unable to save credentials: {}", err),
+                            Error::SerdeYamlError(err) => println!("Error occurred while saving config file: {}", err.to_string()),
+                            Error::FsError(err) => println!("Error occurred while reading files: {}", err.to_string()),
+                            Error::ReqwestError(err) => println!("Network error occurred: {}", err.to_string()),
+                            Error::SerdeJsonError(err) => println!("Unable to read response: {}", err.to_string()),
+                        }
                     }
                 }
             }
@@ -96,14 +97,14 @@ fn main() {
                 if let Some(cred) = github_domain { creds.github_domain = cred.clone(); }
 
                 if let Some(err) = creds.save().err() {
-                    println!("{}", err)
+                    match err {
+                        Error::AutocommentError(err) => println!("Unable to save credentials: {}", err),
+                        Error::SerdeYamlError(err) => println!("Error occurred while saving config file: {}", err.to_string()),
+                        Error::FsError(err) => println!("Error occurred while reading files: {}", err.to_string()),
+                        _ => println!("Unknown error occurred!")
+                    }
                 }
             }
         }
     }
-}
-
-#[cfg(test)]
-mod test {
-
 }

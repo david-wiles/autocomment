@@ -1,9 +1,13 @@
-mod error;
+pub mod error;
 pub mod github;
 pub mod jira;
 pub mod credentials;
 
-use error::Error;
+pub use crate::credentials::Credentials;
+pub use crate::github::DefaultGithubClient;
+pub use crate::jira::DefaultJiraClient;
+pub use crate::error::Error;
+
 use crate::github::GHPullRequest;
 
 pub fn sync_comments(repo: &str, filters: &str, gh_client: &dyn github::GithubClient, jira_client: &dyn jira::JiraClient) -> Result<Vec<String>, Error> {
@@ -15,12 +19,24 @@ pub fn sync_comments(repo: &str, filters: &str, gh_client: &dyn github::GithubCl
 fn process_pull_request(jira_client: &dyn jira::JiraClient, pr: &GHPullRequest) -> Result<String, Error> {
     let pr_body = pr.body.clone().ok_or(Error::AutocommentError(format!("PR {} does not have a description!", pr.html_url.clone())))?;
 
+    // Parse the PR body to find a JIRA ticket
     if let Some(jira_id) = jira::parse_jira_ticket_number(pr_body.as_str(), jira_client.get_domain()) {
+
+        // Create the URL linking to this specific ticket
         let ticket_url = format!("https://{}/browse/{}", jira_client.get_domain(), jira_id);
+
+        // Do HTTP request to get the comments for this PR
         let comments = jira_client.get_jira_comments(jira_id.as_str())?;
+
+        // Check whether the comments already contain this PR's URL
         if !comments.contains_text(pr.html_url.as_str()) {
-            jira_client.post_jira_comment(jira_id.as_str(), pr.build_jira_comment()?.as_str())
+
+            let comment_text = serde_json::to_string(&pr.build_jira_comment()?);
+
+            // Do HTTP request to post the comment
+            jira_client.post_jira_comment(jira_id.as_str(), comment_text?.as_str())
                 .map(|_| format!("Added Jira Comment on ticket {} from {}.", ticket_url, pr.html_url.clone()))
+
         } else {
             Ok(format!("Jira ticket {} already has comment for {}.", ticket_url, pr.html_url.clone()))
         }

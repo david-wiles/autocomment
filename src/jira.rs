@@ -13,15 +13,100 @@ pub struct JiraCommentResponse {
     pub comments: Vec<JiraComment>,
 }
 
+impl JiraCommentResponse {
+    pub fn contains_text(&self, text: &str) -> bool {
+        self.comments.iter().any(|comment| comment.rendered_body.contains(&text))
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JiraComment {
     #[serde(rename = "renderedBody")]
     pub rendered_body: String,
 }
 
-impl JiraCommentResponse {
-    pub fn contains_text(&self, text: &str) -> bool {
-        self.comments.iter().any(|comment| comment.rendered_body.contains(&text))
+#[derive(Serialize, Deserialize, Clone)]
+pub struct JiraCommentRequest {
+    body: JiraCommentElement
+}
+
+impl JiraCommentRequest {
+    pub fn new() -> Self {
+        JiraCommentRequest {
+            body: JiraCommentElement {
+                version: Some(1),
+                comment_type: "doc".to_string(),
+                content: Vec::<JiraCommentElement>::new(),
+                text: None,
+                marks: Vec::new(),
+                attrs: None
+            }
+        }
+    }
+
+    pub fn with_content(&mut self, content: Vec<JiraCommentElement>) -> &mut JiraCommentRequest {
+        self.body.content = content;
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct JiraCommentElement {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<u8>,
+
+    #[serde(rename = "type")]
+    pub comment_type: String,
+
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub content: Vec<JiraCommentElement>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub marks: Vec<JiraCommentElement>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attrs: Option<JiraCommentAttrs>
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct JiraCommentAttrs {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub href: Option<String>
+}
+
+impl JiraCommentElement {
+    pub fn new(el_type: String) -> Self {
+        JiraCommentElement {
+            version: None,
+            comment_type: el_type,
+            content: Vec::new(),
+            text: None,
+            marks: Vec::new(),
+            attrs: None
+        }
+    }
+
+    pub fn with_text(&mut self, text: String) -> &mut JiraCommentElement {
+        self.text = Some(text);
+        self
+    }
+
+    pub fn with_content(&mut self, content: Vec<JiraCommentElement>) -> &mut JiraCommentElement {
+        self.content = content;
+        self
+    }
+
+    pub fn with_marks(&mut self, marks: Vec<JiraCommentElement>) -> &mut JiraCommentElement {
+        self.marks = marks;
+        self
+    }
+
+    pub fn with_attrs(&mut self, attrs: JiraCommentAttrs) -> &mut JiraCommentElement {
+        self.attrs = Some(attrs);
+        self
     }
 }
 

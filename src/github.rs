@@ -5,6 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::credentials::Credentials;
 use crate::error::Error;
+use crate::jira::{JiraCommentAttrs, JiraCommentElement, JiraCommentRequest};
 use crate::TakeUntil;
 
 /// Representation of a Github Pull Request, only including
@@ -21,12 +22,43 @@ pub struct GHPullRequest {
 }
 
 impl GHPullRequest {
-    pub fn build_jira_comment(&self) -> Result<String, Error> {
-        // Get the first line of the PR body
-        let pr_body_line_1 = self.body.clone().ok_or(Error::from(format!("Pull Request {} has an invalid description", self.html_url)))?;
+    pub fn build_jira_comment(&self) -> Result<JiraCommentRequest, Error> {
+        let pr_body = self.body.clone().ok_or(Error::from(format!("Pull Request {} has an invalid description", self.html_url)))?;
 
-        // Build comment json
-        Ok(format!("{{\"body\": {{ \"type\": \"doc\", \"version\": 1, \"content\": [ {{ \"type\": \"paragraph\", \"content\": [ {{ \"text\": \"Pull Request {}: {}\\n\\t{}\\n\\t{}\\n\\tCreated at: {}\", \"type\": \"text\" }} ] }} ] }} }}", self.base.repo.full_name, self.html_url, self.title, pr_body_line_1.as_str().take_until('\n').trim(), self.created_at))
+        let mut jira_comment = JiraCommentRequest::new();
+        let jira_content = vec![
+            JiraCommentElement::new("paragraph".to_string())
+                .with_content(vec![
+                    JiraCommentElement::new("text".to_string())
+                        .with_text(format!("Pull Request in {}: ", self.base.repo.full_name))
+                        .to_owned(),
+                    JiraCommentElement::new("text".to_string())
+                        .with_text(self.title.clone())
+                        .with_marks(vec![
+                            JiraCommentElement::new("link".to_string())
+                                .with_attrs(JiraCommentAttrs{ href: Some(self.html_url.clone()) })
+                                .to_owned()
+                        ])
+                        .to_owned()
+                ])
+                .to_owned(),
+            JiraCommentElement::new("paragraph".to_string())
+                .with_content(vec![
+                    JiraCommentElement::new("text".to_string())
+                        .with_text(pr_body.as_str().take_until('\n').trim().to_string())
+                        .to_owned()
+                ])
+                .to_owned(),
+            JiraCommentElement::new("paragraph".to_string())
+                .with_content(vec![
+                    JiraCommentElement::new("text".to_string())
+                        .with_text(format!("Created at: {}", self.created_at))
+                        .to_owned()
+                ])
+                .to_owned(),
+        ];
+
+        Ok(jira_comment.with_content(jira_content).to_owned())
     }
 }
 
@@ -115,9 +147,9 @@ mod test {
             user: GHPullRequestOwner { login: "me".to_string() }
         };
 
-        let format = "{\"body\": { \"type\": \"doc\", \"version\": 1, \"content\": [ { \"type\": \"paragraph\", \"content\": [ { \"text\": \"Pull Request test: https://url/org/repo\\n\\ttest title\\n\\ttest body\\n\\tCreated at: datetime\", \"type\": \"text\" } ] } ] } }".to_string();
+        let format = "{\"body\":{\"version\":1,\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Pull Request in test: \"},{\"type\":\"text\",\"text\":\"test title\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"https://url/org/repo\"}}]}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"test body\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Created at: datetime\"}]}]}}".to_string();
 
-        assert_eq!(format, pr.build_jira_comment().unwrap())
+        assert_eq!(format, serde_json::to_string(&pr.build_jira_comment().unwrap()).unwrap())
     }
 
     #[test]
