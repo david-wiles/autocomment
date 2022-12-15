@@ -67,8 +67,11 @@ fn main() {
                     let gh_client = DefaultGithubClient::new(&creds);
                     let jira_client = DefaultJiraClient::new(&creds);
 
-                    if let Some(err) = sync_comments(repo, &filters, &gh_client, &jira_client).err() {
-                        match err {
+                    let result = sync_comments(repo, &filters, &gh_client, &jira_client);
+
+                    match result {
+                        Ok(msgs) => msgs.iter().for_each(|msg| println!("{}", msg)),
+                        Err(err) => match err {
                             Error::AutocommentError(err) => println!("Unable to save credentials: {}", err),
                             Error::SerdeYamlError(err) => println!("Error occurred while saving config file: {}", err.to_string()),
                             Error::FsError(err) => println!("Error occurred while reading files: {}", err.to_string()),
