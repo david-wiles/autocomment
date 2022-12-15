@@ -20,15 +20,15 @@ pub struct JiraComment {
 }
 
 impl JiraCommentResponse {
-    pub fn contains_text(&self, text: String) -> bool {
+    pub fn contains_text(&self, text: &str) -> bool {
         self.comments.iter().any(|comment| comment.rendered_body.contains(&text))
     }
 }
 
 pub trait JiraClient {
-    fn get_domain(&self) -> String;
-    fn post_jira_comment(&self, ticket_id: String, text: String) -> Result<(), Error>;
-    fn get_jira_comments(&self, ticket_id: String) -> Result<JiraCommentResponse, Error>;
+    fn get_domain(&self) -> &str;
+    fn post_jira_comment(&self, ticket_id: &str, text: &str) -> Result<(), Error>;
+    fn get_jira_comments(&self, ticket_id: &str) -> Result<JiraCommentResponse, Error>;
 }
 
 pub struct DefaultJiraClient<'a> {
@@ -44,16 +44,16 @@ impl<'a> DefaultJiraClient<'a> {
 }
 
 impl<'a> JiraClient for DefaultJiraClient<'a> {
-    fn get_domain(&self) -> String {
-        self.creds.jira_domain.clone()
+    fn get_domain(&self) -> &str {
+        self.creds.jira_domain.as_str()
     }
 
-    fn post_jira_comment(&self, ticket_id: String, text: String) -> Result<(), Error> {
+    fn post_jira_comment(&self, ticket_id: &str, text: &str) -> Result<(), Error> {
         let jira_url = format!("https://{}/rest/api/3/issue/{}/comment?expand=renderedBody", self.creds.jira_domain, ticket_id);
         let resp = self.client.post(jira_url)
             .basic_auth(self.creds.jira_user.clone(), Some(self.creds.jira_pass.clone()))
             .header("Content-Type", "application/json")
-            .body(text)
+            .body(text.to_string())
             .send()?;
 
         if resp.status().is_success() {
@@ -63,7 +63,7 @@ impl<'a> JiraClient for DefaultJiraClient<'a> {
         }
     }
 
-    fn get_jira_comments(&self, ticket_id: String) -> Result<JiraCommentResponse, Error> {
+    fn get_jira_comments(&self, ticket_id: &str) -> Result<JiraCommentResponse, Error> {
         let jira_url = format!("https://{}/rest/api/3/issue/{}/comment?expand=renderedBody", self.creds.jira_domain, ticket_id);
 
         let resp = self.client.get(jira_url)
@@ -78,9 +78,9 @@ impl<'a> JiraClient for DefaultJiraClient<'a> {
     }
 }
 
-pub fn parse_jira_ticket_number(pr_body: String, domain: String) -> Option<String> {
+pub fn parse_jira_ticket_number(pr_body: &str, domain: &str) -> Option<String> {
     let re = regex::Regex::new(format!(r"\[(\w+\-\d+)\]\(https://{}\S+\)", domain.replace(".", r"\.")).as_str()).unwrap();
-    for group in re.captures_iter(pr_body.as_str()) {
+    for group in re.captures_iter(pr_body) {
         // Return the first matching ticket
         return Some(group[1].to_string());
     }
@@ -93,15 +93,15 @@ pub struct MockJiraClient {
 }
 
 impl JiraClient for MockJiraClient {
-    fn get_domain(&self) -> String {
-        self.domain.clone()
+    fn get_domain(&self) -> &str {
+        self.domain.as_str()
     }
 
-    fn post_jira_comment(&self, ticket_id: String, text: String) -> Result<(), Error> {
+    fn post_jira_comment(&self, _ticket_id: &str, _text: &str) -> Result<(), Error> {
         Ok(())
     }
 
-    fn get_jira_comments(&self, ticket_id: String) -> Result<JiraCommentResponse, Error> {
+    fn get_jira_comments(&self, _ticket_id: &str) -> Result<JiraCommentResponse, Error> {
         Ok(*self.data.clone())
     }
 }
@@ -123,7 +123,7 @@ mod test {
                 },
             ]
         };
-        assert!(resp.contains_text("https://url/org/repo".to_string()))
+        assert!(resp.contains_text("https://url/org/repo"))
     }
 
     #[test]
@@ -132,7 +132,7 @@ mod test {
             total: 0,
             comments: Vec::new()
         };
-        assert!(!resp.contains_text("https://url/org/repo".to_string()))
+        assert!(!resp.contains_text("https://url/org/repo"))
     }
 
     #[test]
@@ -148,16 +148,16 @@ mod test {
                 }
             ]
         };
-        assert!(!resp.contains_text("https://url/org/repo".to_string()))
+        assert!(!resp.contains_text("https://url/org/repo"))
     }
 
     #[test]
     fn parse_jira_ticket_number_with_match() {
-        assert_eq!(parse_jira_ticket_number("dsaaerl; are aerg \nasfwqrwrv\nasdfawfr\t[CEC-123](https://jira.domain/asdf) asdfar w\nasdf".to_string(), "jira.domain".to_string()).unwrap(), "CEC-123".to_string())
+        assert_eq!(parse_jira_ticket_number("dsaaerl; are aerg \nasfwqrwrv\nasdfawfr\t[CEC-123](https://jira.domain/asdf) asdfar w\nasdf", "jira.domain").unwrap(), "CEC-123".to_string())
     }
 
     #[test]
     fn parse_jira_ticket_number_no_match() {
-        assert!(parse_jira_ticket_number("dsaaerl; are aerg \nasfwqrwrv\nasdfawfr\tasdfar w\nasdf".to_string(), "jira.domain".to_string()).is_none())
+        assert!(parse_jira_ticket_number("dsaaerl; are aerg \nasfwqrwrv\nasdfawfr\tasdfar w\nasdf", "jira.domain").is_none())
     }
 }

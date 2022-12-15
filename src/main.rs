@@ -71,7 +71,7 @@ fn main() {
                     let gh_client = DefaultGithubClient::new(&creds);
                     let jira_client = DefaultJiraClient::new(&creds);
 
-                    match sync_comments(repo.clone(), filters.to_string(), &gh_client, &jira_client) {
+                    match sync_comments(repo, &filters, &gh_client, &jira_client) {
                         Ok(results) => results.iter().for_each(|msg| println!("{}", msg)),
                         Err(err) => println!("{}", err)
                     }

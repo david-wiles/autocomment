@@ -23,9 +23,10 @@ pub struct GHPullRequest {
 impl GHPullRequest {
     pub fn build_jira_comment(&self) -> Result<String, Error> {
         // Get the first line of the PR body
-        let pr_body_line_1 = self.body.clone().ok_or(Error::from(format!("Pull Request {} has an invalid description", self.html_url)))?.take_until('\n');
+        let pr_body_line_1 = self.body.clone().ok_or(Error::from(format!("Pull Request {} has an invalid description", self.html_url)))?;
+
         // Build comment json
-        Ok(format!("{{\"body\": {{ \"type\": \"doc\", \"version\": 1, \"content\": [ {{ \"type\": \"paragraph\", \"content\": [ {{ \"text\": \"Pull Request {}: {}\\n\\t{}\\n\\t{}\\n\\tCreated at: {}\", \"type\": \"text\" }} ] }} ] }} }}", self.base.repo.full_name, self.html_url, self.title, pr_body_line_1.trim(), self.created_at))
+        Ok(format!("{{\"body\": {{ \"type\": \"doc\", \"version\": 1, \"content\": [ {{ \"type\": \"paragraph\", \"content\": [ {{ \"text\": \"Pull Request {}: {}\\n\\t{}\\n\\t{}\\n\\tCreated at: {}\", \"type\": \"text\" }} ] }} ] }} }}", self.base.repo.full_name, self.html_url, self.title, pr_body_line_1.as_str().take_until('\n').trim(), self.created_at))
     }
 }
 
@@ -48,7 +49,7 @@ pub trait GithubClient {
     /// Get a list of all pull requests for a repo, using the filters provided.
     /// Only pull requests created by the user found in the Credentials will be
     /// returned.
-    fn get_pull_requests_for_repo(&self, repo: String, filters: String) -> Result<Vec<GHPullRequest>, Error>;
+    fn get_pull_requests_for_repo(&self, repo: &str, filters: &str) -> Result<Vec<GHPullRequest>, Error>;
 }
 
 pub struct DefaultGithubClient<'a> {
@@ -69,7 +70,7 @@ impl<'a> DefaultGithubClient<'a> {
 }
 
 impl<'a> GithubClient for DefaultGithubClient<'a> {
-    fn get_pull_requests_for_repo(&self, repo: String, filters: String) -> Result<Vec<GHPullRequest>, Error> {
+    fn get_pull_requests_for_repo(&self, repo: &str, filters: &str) -> Result<Vec<GHPullRequest>, Error> {
         let gh_url = format!("https://{}/repos/{}/pulls{}", self.creds.github_domain, repo, filters);
 
         let resp = self.client.get(gh_url)
@@ -90,7 +91,7 @@ pub struct MockGithubClient {
 }
 
 impl GithubClient for MockGithubClient {
-    fn get_pull_requests_for_repo(&self, repo: String, filters: String) -> Result<Vec<GHPullRequest>, Error> {
+    fn get_pull_requests_for_repo(&self, _repo: &str, _filters: &str) -> Result<Vec<GHPullRequest>, Error> {
         Ok(*self.data.clone())
     }
 }

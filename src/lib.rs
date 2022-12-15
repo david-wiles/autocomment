@@ -6,21 +6,20 @@ pub mod credentials;
 use error::Error;
 use crate::github::GHPullRequest;
 
-pub fn sync_comments(repo: String, filters: String, gh_client: &dyn github::GithubClient, jira_client: &dyn jira::JiraClient) -> Result<Vec<String>, Error> {
+pub fn sync_comments(repo: &str, filters: &str, gh_client: &dyn github::GithubClient, jira_client: &dyn jira::JiraClient) -> Result<Vec<String>, Error> {
     gh_client.get_pull_requests_for_repo(repo, filters)?.iter()
         .map(|pr| process_pull_request(jira_client, pr))
         .collect()
 }
 
 fn process_pull_request(jira_client: &dyn jira::JiraClient, pr: &GHPullRequest) -> Result<String, Error> {
-    let pr_body = pr.body.clone()
-        .ok_or(Error::AutocommentError(format!("PR {} does not have a description!", pr.html_url.clone())))?;
+    let pr_body = pr.body.clone().ok_or(Error::AutocommentError(format!("PR {} does not have a description!", pr.html_url.clone())))?;
 
-    if let Some(jira_id) = jira::parse_jira_ticket_number(pr_body, jira_client.get_domain()) {
+    if let Some(jira_id) = jira::parse_jira_ticket_number(pr_body.as_str(), jira_client.get_domain()) {
         let ticket_url = format!("https://{}/browse/{}", jira_client.get_domain(), jira_id);
-        let comments = jira_client.get_jira_comments(jira_id.clone())?;
-        if !comments.contains_text(pr.html_url.clone()) {
-            jira_client.post_jira_comment(jira_id.clone(), pr.build_jira_comment()?)
+        let comments = jira_client.get_jira_comments(jira_id.as_str())?;
+        if !comments.contains_text(pr.html_url.as_str()) {
+            jira_client.post_jira_comment(jira_id.as_str(), pr.build_jira_comment()?.as_str())
                 .map(|_| format!("Added Jira Comment on ticket {} from {}.", ticket_url, pr.html_url.clone()))
         } else {
             Ok(format!("Jira ticket {} already has comment for {}.", ticket_url, pr.html_url.clone()))
@@ -34,12 +33,12 @@ trait TakeUntil<T> {
     fn take_until(&self, limit: char) -> T;
 }
 
-impl TakeUntil<Self> for String {
+impl TakeUntil<Self> for &str {
     fn take_until(&self, limit: char) -> Self {
         if let Some(idx) = self.find(limit) {
-            return self[..idx].to_string();
+            return &self[..idx];
         }
-        self.clone()
+        self
     }
 }
 
@@ -95,7 +94,7 @@ mod test {
             ])
         };
 
-        let results = sync_comments("org/repo".to_string(), "".to_string(), &gh_client, &jira_client).unwrap();
+        let results = sync_comments("org/repo", "", &gh_client, &jira_client).unwrap();
 
         assert_eq!(results, vec!["Added Jira Comment on ticket https://jira.domain/browse/A-1 from https://url/org/repo/1.".to_string(), "PR https://url/org/repo/2 does not contain a Jira ticket!".to_string(), "PR https://url/org/repo/3 does not contain a Jira ticket!".to_string()]);
     }
@@ -130,7 +129,7 @@ mod test {
             ])
         };
 
-        let results = sync_comments("org/repo".to_string(), "".to_string(), &gh_client, &jira_client).unwrap();
+        let results = sync_comments("org/repo", "", &gh_client, &jira_client).unwrap();
 
         assert_eq!(results, vec!["Jira ticket https://jira.domain/browse/A-1 already has comment for https://url/org/repo/1.".to_string()]);
     }
@@ -156,7 +155,7 @@ mod test {
             data: Box::new(Vec::new())
         };
 
-        let results = sync_comments("org/repo".to_string(), "".to_string(), &gh_client, &jira_client).unwrap();
+        let results = sync_comments("org/repo", "", &gh_client, &jira_client).unwrap();
 
         assert_eq!(results, Vec::<String>::new());
     }
@@ -184,23 +183,23 @@ mod test {
             ])
         };
 
-        let results = sync_comments("org/repo".to_string(), "".to_string(), &gh_client, &jira_client).unwrap();
+        let results = sync_comments("org/repo", "", &gh_client, &jira_client).unwrap();
 
         assert_eq!(results, vec!["Added Jira Comment on ticket https://jira.domain/browse/A-1 from https://url/org/repo/1.".to_string()]);
     }
 
     #[test]
     fn take_until_empty_string() {
-        assert_eq!("".to_string().take_until('1'), "".to_string());
+        assert_eq!("".take_until('1'), "");
     }
 
     #[test]
     fn take_until_non_empty_string() {
-        assert_eq!("asdf\nasdf".to_string().take_until('\n'), "asdf".to_string());
+        assert_eq!("asdf\nasdf".take_until('\n'), "asdf");
     }
 
     #[test]
     fn take_until_no_match() {
-        assert_eq!("asdf\tasdf".to_string().take_until('\n'), "asdf\tasdf".to_string());
+        assert_eq!("asdf\tasdf".take_until('\n'), "asdf\tasdf");
     }
 }
