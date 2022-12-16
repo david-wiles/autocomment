@@ -27,27 +27,7 @@ pub struct JiraComment {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JiraCommentRequest {
-    body: JiraCommentElement
-}
-
-impl JiraCommentRequest {
-    pub fn new() -> Self {
-        JiraCommentRequest {
-            body: JiraCommentElement {
-                version: Some(1),
-                comment_type: "doc".to_string(),
-                content: Vec::<JiraCommentElement>::new(),
-                text: None,
-                marks: Vec::new(),
-                attrs: None
-            }
-        }
-    }
-
-    pub fn with_content(&mut self, content: Vec<JiraCommentElement>) -> &mut JiraCommentRequest {
-        self.body.content = content;
-        self
-    }
+    pub body: JiraCommentElement
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -74,39 +54,59 @@ pub struct JiraCommentElement {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JiraCommentAttrs {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub href: Option<String>
+    href: Option<String>
 }
 
 impl JiraCommentElement {
-    pub fn new(el_type: String) -> Self {
+    pub fn doc(content: Vec<JiraCommentElement>) -> Self {
         JiraCommentElement {
-            version: None,
-            comment_type: el_type,
-            content: Vec::new(),
+            version: Some(1),
+            comment_type: "doc".to_string(),
+            content: content,
             text: None,
             marks: Vec::new(),
             attrs: None
         }
     }
 
-    pub fn with_text(&mut self, text: String) -> &mut JiraCommentElement {
-        self.text = Some(text);
-        self
+    pub fn text(text: String) -> Self {
+        JiraCommentElement {
+            version: None,
+            comment_type: "text".to_string(),
+            content: Vec::new(),
+            text: Some(text),
+            marks: Vec::new(),
+            attrs: None
+        }
     }
 
-    pub fn with_content(&mut self, content: Vec<JiraCommentElement>) -> &mut JiraCommentElement {
-        self.content = content;
-        self
+    pub fn paragraph(content: Vec<JiraCommentElement>) -> Self {
+        JiraCommentElement {
+            version: None,
+            comment_type: "paragraph".to_string(),
+            content: content,
+            text: None,
+            marks: Vec::new(),
+            attrs: None
+        }
     }
 
-    pub fn with_marks(&mut self, marks: Vec<JiraCommentElement>) -> &mut JiraCommentElement {
-        self.marks = marks;
-        self
-    }
-
-    pub fn with_attrs(&mut self, attrs: JiraCommentAttrs) -> &mut JiraCommentElement {
-        self.attrs = Some(attrs);
-        self
+    pub fn link(text: String, link: String) -> Self {
+        JiraCommentElement {
+            version: None,
+            comment_type: "text".to_string(),
+            content: Vec::new(),
+            text: Some(text),
+            marks: vec![JiraCommentElement {
+                version: None,
+                comment_type: "link".to_string(),
+                content: Vec::new(),
+                text: None,
+                marks: Vec::new(),
+                attrs: Some(JiraCommentAttrs { href: Some(link) })
+            }],
+            attrs: None
+        }
     }
 }
 

@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::credentials::Credentials;
 use crate::error::Error;
-use crate::jira::{JiraCommentAttrs, JiraCommentElement, JiraCommentRequest};
+use crate::jira::{JiraCommentElement, JiraCommentRequest};
 use crate::TakeUntil;
 
 /// Representation of a Github Pull Request, only including
@@ -25,40 +25,22 @@ impl GHPullRequest {
     pub fn build_jira_comment(&self) -> Result<JiraCommentRequest, Error> {
         let pr_body = self.body.clone().ok_or(Error::from(format!("Pull Request {} has an invalid description", self.html_url)))?;
 
-        let mut jira_comment = JiraCommentRequest::new();
-        let jira_content = vec![
-            JiraCommentElement::new("paragraph".to_string())
-                .with_content(vec![
-                    JiraCommentElement::new("text".to_string())
-                        .with_text(format!("Pull Request in {}: ", self.base.repo.full_name))
-                        .to_owned(),
-                    JiraCommentElement::new("text".to_string())
-                        .with_text(self.title.clone())
-                        .with_marks(vec![
-                            JiraCommentElement::new("link".to_string())
-                                .with_attrs(JiraCommentAttrs{ href: Some(self.html_url.clone()) })
-                                .to_owned()
-                        ])
-                        .to_owned()
+        let jira_comment = JiraCommentRequest {
+            body: JiraCommentElement::doc(vec![
+                JiraCommentElement::paragraph(vec![
+                    JiraCommentElement::text(format!("Pull Request in {}: ", self.base.repo.full_name)),
+                    JiraCommentElement::link(self.title.clone(), self.html_url.clone())
+                ]),
+                JiraCommentElement::paragraph(vec![
+                    JiraCommentElement::text(pr_body.as_str().take_until('\n').trim().to_string())
+                ]),
+                JiraCommentElement::paragraph(vec![
+                    JiraCommentElement::text(format!("Created at: {}", self.created_at))
                 ])
-                .to_owned(),
-            JiraCommentElement::new("paragraph".to_string())
-                .with_content(vec![
-                    JiraCommentElement::new("text".to_string())
-                        .with_text(pr_body.as_str().take_until('\n').trim().to_string())
-                        .to_owned()
-                ])
-                .to_owned(),
-            JiraCommentElement::new("paragraph".to_string())
-                .with_content(vec![
-                    JiraCommentElement::new("text".to_string())
-                        .with_text(format!("Created at: {}", self.created_at))
-                        .to_owned()
-                ])
-                .to_owned(),
-        ];
+            ])
+        };
 
-        Ok(jira_comment.with_content(jira_content).to_owned())
+        Ok(jira_comment)
     }
 }
 
